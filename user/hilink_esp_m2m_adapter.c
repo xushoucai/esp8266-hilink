@@ -27,6 +27,8 @@
 #include "json/cJSON.h"
 #include "hilink_profile.h"
 #include "hilink_log.h"
+#include "hilink_esp_adapter.h"
+#include "hilink_ota.h"
 
 typedef struct aircondition_info_t {
     bool switch_value; //switch value
@@ -105,7 +107,16 @@ int hilink_get_char_state(const char* svc_id, const char* in, unsigned int in_le
         printf("out %s\n", *out);
         *out_len = strlen(*out);
     } else if (strncmp(svc_id, "devOta", strlen("devOta")) == 0) {
-        return 0;
+        char latest_version[16];
+        bzero(latest_version,16);
+        if (-1 == get_latest_version(latest_version)){
+            return -1;
+        } else {
+            sprintf(*out, "{\"version\":\"%s\"}",latest_version);
+            printf("out %s\n", *out);
+            *out_len = strlen(*out);
+        }
+        // return 0;
     }
 
     return 0;

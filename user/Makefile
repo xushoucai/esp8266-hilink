@@ -38,7 +38,6 @@ GEN_LIBS = libuser.a
 #
 
 INCLUDES := $(INCLUDES) -I $(PDIR)include
-INCLUDES += -I platforms/esp8266-hilink/inlcude
 INCLUDES += -I ./
 PDIR := ../$(PDIR)
 sinclude $(PDIR)Makefile

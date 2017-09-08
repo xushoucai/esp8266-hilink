@@ -22,31 +22,17 @@
  *
  */
 
-#ifndef __HILINK_OTA_CONFIG_H__
-#define __HILINK_OTA_CONFIG_H__
-
-#define OTA_SERVER_ADDR "115.29.202.58"
-#define OTA_SERVER_PORT 80
-#define BIN_FILENAME "user.bin"
-#define OTA_TIMEOUT 60000
-
-#define MASTER_KEY "eaff337b3468470a12c0feea6604fa349853764c"
-// #define MASTER_KEY "f8fa3a68db3cfbbe9fe2412f44b48199a1d67702"
-#define Download_request_url "GET /v1/device/rom/?action=download_rom&version=%s&filename=%s HTTP/1.0\r\n\
-Host:%s:%d\r\n\
-%s\r\n"
-
-#define Query_version_url "GET /v1/device/rom/?is_format_simple=true HTTP/1.0\r\n\
-Host:%s:%d\r\n\
-%s\r\n"
-
-#define pheadbuffer "Connection: keep-alive\r\n\
-Cache-Control: no-cache\r\n\
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3095.5 Safari/537.36\r\n\
-Accept: */*\r\n\
-Authorization: token %s\r\n\
-Accept-Encoding: gzip,deflate,sdch\r\n\
-Accept-Charset: iso-8859-5\r\n\
-Accept-Language: zh-CN,zh;q=0.8\r\n"
+#ifndef __HILINK_OTA_H__
+#define __HILINK_OTA_H__
+/**
+  * @brief  get latest version in OTA server
+  *
+  * @param  latest_version : point to latest version
+  *
+  * @return  0 : success
+  * @return -1 : fail
+  * @return  1 : current firmware version is latest 
+  */
+int get_latest_version(char * latest_version);
 
 #endif

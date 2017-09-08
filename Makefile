@@ -126,6 +126,7 @@ DDEFINES +=				\
 
 INCLUDES := $(INCLUDES) -I $(PDIR)include
 INCLUDES += -I $(PDIR)platforms/hilink/include
+INCLUDES += -I $(PDIR)hilink_ota
 sinclude $(SDK_PATH)/Makefile
 
 .PHONY: FORCE

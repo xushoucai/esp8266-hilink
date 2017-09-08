@@ -65,9 +65,7 @@ void hilink_m2m_task(void* pData)
 {
     int ret = 0;
     ret = hilink_m2m_init(&g_dev_info, (svc_info_t*)&g_svc_info, g_svc_num);    //\B3\F5ʼ\BB\AFHilink Device SDK
-#ifdef ENABLE_NEW_HILINK
     hilink_m2m_set_taskid(0);
-#endif
 
     while (1) {
         //\C8\E7\B9\FB\D3\D0\C5\E4\CD\F8ָ\C1\B9\FD\C0\B4\A3\AC\CF\C8ֹͣ\B5\B1ǰ\C8\CE\CE\F1

@@ -64,8 +64,11 @@ static void hilink_upgrade_recycle(void)
     flash_erased = false;
     bzero(ota_server_version, 16);
     system_upgrade_deinit();
-    printf("[hilink_upgrade_recycle] : system_upgrade_flag_check()=0x%d\n", system_upgrade_flag_check());
+    os_timer_disarm(&upgrade_timer);
+    //reopen sleep mode when get OTA task finish
+    wifi_set_sleep_type(MODEM_SLEEP_T);
 
+    printf("[hilink_upgrade_recycle] : system_upgrade_flag_check()=0x%d\n", system_upgrade_flag_check());
     //if OTA success ,reboot to new image and run it,otherwise the APP will notify client the OTA task failed ,
     //the device will delete the ota task,and need client restart the OTA task through Hilink APP
 
@@ -74,8 +77,9 @@ static void hilink_upgrade_recycle(void)
         ota_task_handle = NULL;
         system_upgrade_reboot();
     } else {
-        vTaskDelete(ota_task_handle);
+        hilink_ota_rpt_prg(101, 120);
         ota_task_handle = NULL;
+        vTaskDelete(NULL);
     }
 }
 
@@ -194,7 +198,8 @@ static void hilink_ota_start(void* param)
     int sin_size;
     int sta_socket;
     char recv_buf[1460] = {0};
-
+    //disable sleep when OTA
+    wifi_set_sleep_type(NONE_SLEEP_T);
     struct sockaddr_in remote_ip;
     printf("Hello, welcome to client!\r\n");
 
@@ -238,7 +243,7 @@ static void hilink_ota_start(void* param)
     }
 
     while ((system_upgrade_flag_check() != UPGRADE_FLAG_FINISH) &&
-            ((recbytes = read(sta_socket, recv_buf, 1460)) > 0)) {
+            ((recbytes = read(sta_socket, recv_buf, 512)) > 0)) {
         if (0 != upgrade_download(recv_buf, recbytes)) {
             goto recycle;
         }
@@ -262,7 +267,7 @@ recycle:
     vTaskDelete(NULL);
 }
 
-static int get_latest_version(void)
+int get_latest_version(char * latest_version)
 {
     int sta_socket;
     struct sockaddr_in remote_ip;
@@ -270,6 +275,11 @@ static int get_latest_version(void)
     int recbytes;
     cJSON* root = NULL;
     cJSON* p_json = NULL;
+    
+    if( !latest_version ) {
+        return -1;
+    }
+
     sta_socket = socket(PF_INET, SOCK_STREAM, 0);
 
     if (-1 == sta_socket) {
@@ -325,21 +335,19 @@ static int get_latest_version(void)
             if (!p_json) {
                 goto recycle;
             } else {
-                memcpy(ota_server_version, p_json->valuestring, strlen(p_json->valuestring));
+                memcpy(latest_version, p_json->valuestring, strlen(p_json->valuestring));
 
-                //if get the latest image version,need upload old version then upload
-                // new version, don't know why,need ask HUAWEI
-                if (0 != hilink_ota_rpt_ver((char* )hilink_get_device_info()->fwv, strlen(hilink_get_device_info()->fwv), NULL, 0)) {
-                    goto recycle;
-                }
+                //if get the latest image version,need upload new version 
+                
+                if (strncmp(hilink_get_device_info()->fwv, latest_version, strlen(ota_server_version)) !=  0) {
 
-                if (strncmp(hilink_get_device_info()->fwv, ota_server_version, strlen(ota_server_version)) !=  0) {
-                    if (0 != hilink_ota_rpt_ver(ota_server_version, strlen(ota_server_version), NULL, 0)) {
+                    if (0 != hilink_ota_rpt_ver(latest_version, strlen(latest_version), NULL, 0)) {
                         goto recycle;
                     }
+                } else {
+                        close(sta_socket);
+                        return 1;
                 }
-
-                close(sta_socket);
             }
 
             return 0;
@@ -349,15 +357,24 @@ static int get_latest_version(void)
     }
 
 recycle:
+    latest_version = NULL;
     close(sta_socket);
     return -1;
 }
 
 int hilink_ota_get_ver(char** version, int* ver_len)
 {
-    if (0 != get_latest_version()) {
-        return -902;
-    } else if (memcmp(ota_server_version, hilink_get_device_info()->fwv, strlen(ota_server_version)) == 0) {
+    char latest_version[16];
+    bzero(latest_version,16);
+    if (strlen(ota_server_version) == 0 ) {
+        if (-1 == get_latest_version(latest_version)){
+            return -902;
+        }
+        else {
+            memcpy(ota_server_version,latest_version,strlen(latest_version));
+        }
+    }
+   if (memcmp(ota_server_version, hilink_get_device_info()->fwv, strlen(hilink_get_device_info()->fwv)) == 0) {
         *version = NULL;
         *ver_len = 0;
         latest_version_flag = true;
@@ -368,7 +385,7 @@ int hilink_ota_get_ver(char** version, int* ver_len)
         latest_version_flag = false;
     }
 
-    printf("ota_server_version %s \n", ota_server_version);
+    printf("version %s ota_server_version %s \n", *version,ota_server_version);
     return 0;
 }
 
@@ -391,11 +408,14 @@ int hilink_ota_trig(int mode)
     //attention :if the mode is 1 ,this API need return immediately,can not be blocked,hilink_ota_rpt_prg
     //should upload progress after hilink_ota_trig return.
     char temp_cmp[16] = {0};
-
+    char latest_version[16];
+    bzero(latest_version,16);
     if (mode == 0) {
         if (memcmp(ota_server_version, temp_cmp, 16) == 0) {
-            if (0 != get_latest_version()) {
+            if (-1 == get_latest_version(latest_version)) {
                 return -900;
+            } else {
+                memcpy(ota_server_version,latest_version,strlen(latest_version));
             }
         }
 
